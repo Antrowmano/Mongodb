@@ -1,0 +1,209 @@
+﻿Mount a volume to EC2 instance:
+        
+        Login to ec2 instance and list the available disks
+
+
+		>>lsblk
+
+
+        Check the volume has using any data using
+
+
+                >>file -s /dev/<disk name>                 eg:nvme1n1(device name)
+
+
+        Format the volume to xfs
+
+
+                >>mkfs -t xfs /dev/<disk name>        eg:nvme1n1(device name)
+
+
+        Create the directory choice the mount in root directory
+
+
+                >>mkdir /<volume name>                 eg:/data
+
+
+        Mount the volume to new volume
+
+
+                >>mount /dev/<disk name> /<volume name>   eg:disk=nvme1n1,eg:volume/data
+
+
+        Check the Disk space
+
+
+                >> cd /<volume name>
+                >> df -h
+        Add this following command to the [ /etc/fstab ] this command will help every reboot it will automatically mount 
+
+
+        /dev/<Diskame> /<volume name>  xfs  defaults,nofail  0  2
+         
+
+
+Successfully mounted
+
+
+Install mongodb on same instance
+
+
+        Just update 
+
+
+                >>apt-get update
+
+
+        Install gnupg libraries
+
+
+                >>apt-get install gnupg
+
+
+        Importing the key
+
+
+                >>wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+
+
+        
+Create the list of file for mongodb:
+
+
+                >>echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
+
+
+        Reload the local package databases:
+
+
+                >>apt-get update
+
+
+        Install mongodb packages:
+
+
+                >>apt-get install -y mongodb-org
+
+
+        If you are not sure which init system your platform:
+
+
+                >>ps --no-headers -o comm 1
+
+
+        Start mongodb:
+
+
+                >>systemctl start mongod
+
+
+Add datadir location and log location and we give separate storage for data. Edit mongodb.conf  
+        
+storage:
+  dbPath: /data/mongodb/ —--> This is our storage location
+  journal:
+    enabled: true
+systemLog:
+  destination: file
+  logAppend: true
+  path: /data/log/mongod.log —-----> This is our log location
+
+
+Create directory for datadir and log in /data
+
+
+        >>mkdir mongodb
+        >> mkdir log
+
+
+Give mongodb owner for /data
+
+
+        >>chown -R mongodb:mongodb /data
+
+
+
+
+Restart the mongodb service:
+
+
+        >>systemctl restart mongod
+
+
+Create the root user :
+
+
+        Login server using 
+                >>mongosh
+                >>use admin
+                >>use admin
+
+
+db.createUser(
+{
+    user: "****",
+    pwd: "****",
+    roles: [ 
+        { role: "root", db: "admin" }
+    ]
+})
+
+
+Then stop the mongodb service
+
+
+        >>>>systemctl stop mongod
+
+
+
+
+
+
+Create security file:
+
+
+        >> cd /var/lib/mongodb
+        >>openssl rand -base64 756 > security.keyFile —-->security file
+        >>chown mongodb:mongodb /var/lib/mongodb/security.keyFile —--->ownership
+        >>chmod 400 /var/lib/mongodb/security.keyFile —-->give permissions
+        
+ Add security file location  and enable authentication in mongodb.conf
+
+
+        Security:
+authorization: "enabled"
+keyFile: /var/lib/mongodb/security.keyFile
+
+
+Add replset in mongodb.conf
+
+
+        replication:
+                  replSetName:  <anyname>
+
+
+Restart the mongodb service
+:
+        >>systemctl restart mongod
+
+
+Login mongodb using mongosh
+
+
+        >>mongosh -u **** -p  —---> Before we create root user using that
+        >>rs.conf()                —-----> current configuration replica set
+        >>cfg.members[0].host = "<***.***.***.***>:27017" — add ip 
+        >>rs.reconfig(cfg) —----> Reconfig an existing replica set
+
+
+Create one user :
+        db.createUser(
+  {    user: "Test_user",   pwd: "*********", roles: [ { role: "userAdminAnyDatabase", db: "admin" },"readWriteAnyDatabase"  ]  })
+
+
+
+
+Login Using repliset:
+
+
+ URL: mongo --host "<repilset name>/<Ip Or DNS >:27017" -u <username> -p
